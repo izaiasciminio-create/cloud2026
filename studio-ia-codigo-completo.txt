@@ -1,0 +1,106 @@
+STUDIO IA MVP - CODIGO FONTE COMPLETO
+Cada secao indica o caminho do arquivo dentro do projeto.
+
+=================================================================
+ARQUIVO: README.md
+=================================================================
+# Studio IA - MVP 1
+
+Estúdio web responsivo para criar prompts de vídeo realista. Não usa API paga e não gera vídeos diretamente.
+
+## Requisitos
+Node.js 20.9+ e npm.
+
+## Iniciar
+```bash
+npm install
+npm run dev
+```
+Abra http://localhost:3000
+
+## Arquitetura
+- Next.js App Router + TypeScript
+- `app/page.tsx`: formulário e visualização do prompt
+- `app/api/prompts/route.ts`: validação e geração de prompts
+- `lib/prompt.ts`: regras de composição do prompt
+- `app/style.css`: tema responsivo
+
+## Próximas etapas
+- Login e persistência de projetos (Supabase)
+- Biblioteca de modelos com referências e consentimento
+- Histórico e versões de prompts
+- Integração opcional com provedores de geração de vídeo
+- Multi-tenant, planos e pagamentos apenas após validar MVP
+
+## Segurança
+Não coloque chaves de API no frontend. Este MVP não possui autenticação nem armazenamento persistente e não deve ser publicado como serviço multiusuário sem essas implementações.
+
+
+=================================================================
+ARQUIVO: app/api/prompts/route.ts
+=================================================================
+import {NextResponse} from 'next/server';
+import {makePrompt, type PromptInput} from '../../../lib/prompt';
+export async function POST(req:Request) {
+  try {
+    const body = await req.json() as PromptInput;
+    if (!body || typeof body !== 'object' || ![8,10,15].includes(body.duration)) return NextResponse.json({error:'Duração inválida'}, {status:400});
+    for (const field of ['model','product','scene','movement'] as const) if(typeof body[field] !== 'string' || body[field].length > 1000) return NextResponse.json({error:`Campo inválido: ${field}`},{status:400});
+    if(typeof body.spoken !== 'boolean') return NextResponse.json({error:'Áudio inválido'}, {status:400});
+    return NextResponse.json({prompt:makePrompt(body)});
+  } catch {return NextResponse.json({error:'Requisição inválida'},{status:400})}
+}
+
+
+=================================================================
+ARQUIVO: app/layout.tsx
+=================================================================
+import './style.css';
+export const metadata = { title: 'Studio IA', description: 'Estúdio de prompts para vídeos comerciais' };
+export default function Layout({children}:{children:React.ReactNode}) {return <html lang="pt-BR"><body>{children}</body></html>}
+
+
+=================================================================
+ARQUIVO: app/page.tsx
+=================================================================
+'use client';
+import {useState} from 'react';
+export default function Home(){
+ const [model,setModel]=useState('Modelo adulta, aparência natural, identidade visual consistente');
+ const [product,setProduct]=useState('Look completo em destaque');
+ const [scene,setScene]=useState('Ambiente elegante, luz natural');
+ const [movement,setMovement]=useState('Caminha lentamente, vira de lado e ajusta a roupa com naturalidade');
+ const [duration,setDuration]=useState(10); const [spoken,setSpoken]=useState(false);
+ const [prompt,setPrompt]=useState(''); const [error,setError]=useState(''); const [loading,setLoading]=useState(false);
+ async function generate(){setLoading(true);setError('');try{const r=await fetch('/api/prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,product,scene,movement,duration,spoken})});const j=await r.json();if(!r.ok)throw Error(j.error);setPrompt(j.prompt)}catch(e){setError(e instanceof Error?e.message:'Erro desconhecido')}finally{setLoading(false)}}
+ return <main><header><span className="logo">✦ STUDIO IA</span><span className="pill">MVP • Uso pessoal</span></header><section className="hero"><small>ESTÚDIO CRIATIVO</small><h1>Vídeos naturais começam com um bom prompt.</h1><p>Planeje cenas realistas para vídeos de produtos e moda. Copie o prompt para seu gerador de vídeo favorito.</p></section><div className="columns"><section className="panel"><h2>Direção criativa</h2><label>Descrição da modelo<textarea value={model} onChange={e=>setModel(e.target.value)}/></label><label>Produto ou look<textarea value={product} onChange={e=>setProduct(e.target.value)}/></label><label>Cenário<textarea value={scene} onChange={e=>setScene(e.target.value)}/></label><label>Movimentos<textarea value={movement} onChange={e=>setMovement(e.target.value)}/></label><label>Duração<select value={duration} onChange={e=>setDuration(Number(e.target.value))}><option value={8}>8 segundos</option><option value={10}>10 segundos</option><option value={15}>15 segundos</option></select></label><label className="check"><input type="checkbox" checked={spoken} onChange={e=>setSpoken(e.target.checked)}/> Com fala em português brasileiro</label><button onClick={generate} disabled={loading}>{loading?'Gerando...':'✦ Gerar prompt'}</button>{error&&<p className="error">{error}</p>}</section><section className="panel"><h2>Seu prompt</h2><p className="muted">Formato vertical 9:16 • Câmera natural • Realismo</p><div className="output">{prompt||'Seu prompt aparecerá aqui após clicar em Gerar prompt.'}</div><button className="secondary" disabled={!prompt} onClick={()=>navigator.clipboard.writeText(prompt)}>Copiar prompt</button><p className="muted">Este MVP não gera vídeos nem envia dados para serviços externos.</p></section></div><footer>Studio IA · Primeira versão funcional</footer></main>
+}
+
+
+=================================================================
+ARQUIVO: app/style.css
+=================================================================
+*{box-sizing:border-box}body{margin:0;background:#0a0a13;color:#f4f1ff;font-family:Arial,Helvetica,sans-serif}main{max-width:1150px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #29283b;padding-bottom:20px}.logo{font-weight:900;letter-spacing:2px;color:#c6a9ff}.pill{border:1px solid #4c3c73;padding:8px 12px;border-radius:40px;font-size:12px;color:#b9a6da}.hero{padding:55px 0 30px}.hero small{color:#b494ff;letter-spacing:3px}.hero h1{font-size:clamp(32px,5vw,56px);max-width:780px;margin:12px 0}.hero p{color:#b4b0c6;max-width:650px;line-height:1.6}.columns{display:grid;grid-template-columns:1fr 1fr;gap:22px}.panel{background:#151522;border:1px solid #2b293f;border-radius:18px;padding:26px}.panel h2{margin:0 0 24px}label{display:block;margin:16px 0;font-size:14px;color:#d8d3e8}textarea,select{width:100%;display:block;margin-top:8px;background:#0d0d19;border:1px solid #3b3854;border-radius:10px;color:white;padding:12px;font:inherit}textarea{min-height:65px;resize:vertical}.check{display:flex;gap:9px;align-items:center}button{background:#8659ee;color:white;border:0;padding:14px 18px;border-radius:10px;font-weight:700;cursor:pointer;width:100%}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#302645;margin-top:16px}.output{background:#0c0c17;border:1px solid #39334f;padding:18px;border-radius:12px;min-height:280px;white-space:pre-wrap;line-height:1.6;overflow-wrap:anywhere}.muted{color:#a9a3bd;font-size:13px}.error{color:#ff8f9e}footer{padding:30px 0;color:#77718c;font-size:12px}@media(max-width:760px){.columns{grid-template-columns:1fr}.hero{padding-top:32px}.panel{padding:18px}}
+
+
+=================================================================
+ARQUIVO: lib/prompt.ts
+=================================================================
+export type PromptInput = {model:string;product:string;scene:string;movement:string;duration:number;spoken:boolean};
+export function makePrompt(x:PromptInput) {
+  const duration = [8,10,15].includes(x.duration) ? x.duration : 10;
+  return `Create a photorealistic ${duration}-second vertical 9:16 commercial fashion/product video. Subject: ${x.model.trim() || 'an adult presenter'}. Product/look: ${x.product.trim() || 'the featured outfit'}. Setting: ${x.scene.trim() || 'a natural indoor environment'}. Movement: ${x.movement.trim() || 'subtle natural weight shifts and relaxed gestures'}. Camera: handheld by another person, gentle natural micro-movements, realistic autofocus, stable framing, continuous shot. Preserve facial identity, anatomy, clothing details, product proportions and lighting consistency. Avoid exaggerated gestures, artificial skin, warped hands, morphing, abrupt cuts and text overlays. Audio: ${x.spoken ? 'natural Brazilian Portuguese dialogue, no subtitles' : 'no dialogue, ambient sound only'}. Show the outfit and product clearly without forced posing.`;
+}
+
+
+=================================================================
+ARQUIVO: package.json
+=================================================================
+{"name":"ai-studio-starter","version":"0.1.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"next":"^15.5.0","react":"^19.1.0","react-dom":"^19.1.0"},"devDependencies":{"typescript":"^5.9.0","@types/node":"^22.0.0","@types/react":"^19.0.0"}}
+
+
+=================================================================
+ARQUIVO: tsconfig.json
+=================================================================
+{"compilerOptions":{"target":"ES2017","lib":["dom","dom.iterable","esnext"],"allowJs":true,"skipLibCheck":true,"strict":true,"noEmit":true,"esModuleInterop":true,"module":"esnext","moduleResolution":"bundler","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"plugins":[{"name":"next"}]},"include":["next-env.d.ts","**/*.ts","**/*.tsx",".next/types/**/*.ts"],"exclude":["node_modules"]}
+
